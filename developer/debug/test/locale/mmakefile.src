@@ -29,7 +29,7 @@ USER_LDFLAGS := -L$(AROS_CONTRIB_LIB)
 
 %build_prog mmake=test-locale-formatstring-yes-cunit \
     files=cunit-locale-formatstring targetdir=$(CUNITEXEDIR) \
-    progname=cunit-locale-formatstring uselibs="cunit"
+    progname=cunit-locale-formatstring uselibs="cunit posixc"
 
 
 %copy_files_q mmake=test-locale-miscfiles files="openlocale.prefs" dst=$(EXEDIR)

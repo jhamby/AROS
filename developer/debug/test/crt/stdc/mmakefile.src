@@ -77,6 +77,6 @@ USER_LDFLAGS := -L$(AROS_CONTRIB_LIB)
 
 %build_progs mmake=test-crt-stdc-yes-cunit \
     files=$(CUNITSTDCTESTFILES) targetdir=$(CUNITEXEDIR) \
-    uselibs="cunit"
+    uselibs="cunit posixc"
 
 %common

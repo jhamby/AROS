@@ -126,22 +126,40 @@ LONG __FindType_WB(BPTR lock, struct IconBase *IconBase)
 }
 
 
-struct DiskObject *GetFSDeviceIcon(char *FS, char*Dev, const struct TagItem *tags, struct IconBase *IconBase)
+struct DiskObject *GetFSDeviceIcon(char *FS, char*Dev, char*DevClass, const struct TagItem *tags, struct IconBase *IconBase)
 {
     struct DiskObject *icon = NULL;
+    char fsDev[MAXFILENAMELENGTH];
     if (FS)
     {
-        char fsDev[128];
-        sprintf(fsDev, "%s%s", FS, Dev);
+        if (Dev)
+        {
+            int devlen = strnlen(Dev,32);
+            fsDev[0] = '\0';
+            strcat(fsDev, FS);
+            strncat(fsDev, Dev, devlen - 1);
+            strcat(fsDev, "disk");
+            if (icon = GetDefaultIconFromName(fsDev, tags))
+                return icon;
+        }
+        sprintf(fsDev, "%s%s", FS, DevClass);
         if (icon = GetDefaultIconFromName(fsDev, tags))
             return icon;
     }
-    if (icon = GetDefaultIconFromName(Dev, tags))
+    if (Dev)
+    {
+        int devlen = strnlen(Dev,32);
+        fsDev[0] = '\0';
+        strncat(fsDev, Dev, devlen - 1);
+        strcat(fsDev, "disk");
+        if (icon = GetDefaultIconFromName(fsDev, tags))
+            return icon;
+    }
+
+    if (icon = GetDefaultIconFromName(DevClass, tags))
         return icon;
     return NULL;
 }
-
-
 
 BOOL IsDiscDevice(char *dev)
 {
@@ -150,7 +168,7 @@ BOOL IsDiscDevice(char *dev)
     return FALSE;
 }
 
-struct DiskObject *GetDiscIcon(ULONG fsid, const struct TagItem *tags, struct IconBase *IconBase)
+struct DiskObject *GetDiscIcon(char *device, ULONG fsid, const struct TagItem *tags, struct IconBase *IconBase)
 {
     char *fsstr = NULL;
 
@@ -165,7 +183,7 @@ struct DiskObject *GetDiscIcon(ULONG fsid, const struct TagItem *tags, struct Ic
             fsstr = "Busy";
             break;
         }
-    return GetFSDeviceIcon(fsstr, "CDROM", tags, IconBase);
+    return GetFSDeviceIcon(fsstr, device, "CDROM", tags, IconBase);
 }
 
 BOOL IsFloppyDevice(char *dev)
@@ -176,7 +194,7 @@ BOOL IsFloppyDevice(char *dev)
     return FALSE;
 }
 
-struct DiskObject *GetFloppydiskIcon(ULONG fsid, const struct TagItem *tags, struct IconBase *IconBase)
+struct DiskObject *GetFloppydiskIcon(char *device, ULONG fsid, const struct TagItem *tags, struct IconBase *IconBase)
 {
     char *fsstr = NULL;
 
@@ -230,7 +248,7 @@ struct DiskObject *GetFloppydiskIcon(ULONG fsid, const struct TagItem *tags, str
             fsstr = "FFS";
             break;
         }
-    return GetFSDeviceIcon(fsstr, "Disk", tags, IconBase);
+    return GetFSDeviceIcon(fsstr, device, "Disk", tags, IconBase);
 }
 
 BOOL IsHarddiskDevice(char *dev)
@@ -245,7 +263,7 @@ BOOL IsHarddiskDevice(char *dev)
     return FALSE;
 }
 
-struct DiskObject *GetHarddiskIcon(ULONG fsid, const struct TagItem *tags, struct IconBase *IconBase)
+struct DiskObject *GetHarddiskIcon(char *device, ULONG fsid, const struct TagItem *tags, struct IconBase *IconBase)
 {
     char *fsstr = NULL;
 
@@ -296,7 +314,32 @@ struct DiskObject *GetHarddiskIcon(ULONG fsid, const struct TagItem *tags, struc
             fsstr = "FFS";
             break;
         }
-    return GetFSDeviceIcon(fsstr, "Harddisk", tags, IconBase);
+    return GetFSDeviceIcon(fsstr, device, "Harddisk", tags, IconBase);
+}
+
+struct DiskObject *__GetDeviceIcon_WB
+(
+    char *name, ULONG fsid, const struct TagItem *tags, struct IconBase *IconBase
+)
+{
+    if (strlen(name) <= 5)
+    {
+        if (strncasecmp(name, "RAM:", 4) == 0)
+            return GetDefaultIconFromName("RAM", tags);
+        else if (strncasecmp(name, "RAD", 3) == 0)
+            return GetDefaultIconFromName("RAD", tags);
+        else if (strcasecmp(name, "HOME") == 0)
+            return GetDefaultIconFromName("Home", tags);
+        else if (strncasecmp(name, "USB", 3) ==0)
+            return GetDefaultIconFromName("USB", tags);
+        else if (IsFloppyDevice(name))
+            return GetFloppydiskIcon(name, fsid, tags, IconBase);
+        else if (IsDiscDevice(name))
+            return GetDiscIcon(name, fsid, tags, IconBase);
+        else if (IsHarddiskDevice(name))
+            return GetHarddiskIcon(name, fsid, tags, IconBase);
+    }
+    return GetDefaultIconFromName("UnknownDevice", tags);
 }
 
 struct DiskObject *__FindDefaultIcon_WB
@@ -322,47 +365,10 @@ struct DiskObject *__FindDefaultIcon_WB
         )
         {
             BPTR lock = Lock(device, SHARED_LOCK);
+            bug("[Icon] %s: Lock for '%s' @ 0x%p\n", __func__, device, lock);
             LONG type = FindDiskType(iim->iim_FIB->fib_FileName, lock);
             UnLock(lock);
-            if (strlen(device) <= 5)
-            {
-                if (strcasecmp(device, "RAM:") == 0)
-                {
-                    icon = GetDefaultIconFromName("RAM", iim->iim_Tags);
-                }
-                else if (strncasecmp(device, "RAD", 3) == 0)
-                {
-                    icon = GetDefaultIconFromName("RAD", iim->iim_Tags);
-                }
-                else if (strcasecmp(device, "HOME") == 0)
-                {
-                    icon = GetDefaultIconFromName("Home", iim->iim_Tags);
-                }
-                else if (IsFloppyDevice(device))
-                {
-                    icon = GetFloppydiskIcon(type, iim->iim_Tags, IconBase);
-                }
-                else if (IsDiscDevice(device))
-                {
-                    icon = GetDiscIcon(type, iim->iim_Tags, IconBase);
-                }
-                else if (IsHarddiskDevice(device))
-                {
-                    icon = GetHarddiskIcon(type, iim->iim_Tags, IconBase);
-                }
-            }
-            else if (strncasecmp(device, "USB", 3) ==0)
-            {
-                icon = GetDefaultIconFromName("USB", iim->iim_Tags);
-            }
-            else
-            {
-                /* Fall back to generic icon */
-                if (icon ==  NULL)
-                {
-                    icon = GetDefaultIconFromName("UnknownDevice", iim->iim_Tags);
-                }
-            }
+            icon = __GetDeviceIcon_WB(device, type, iim->iim_Tags, IconBase);
         }
         
         /* Fall back to generic disk icon */
@@ -531,6 +537,30 @@ struct DiskObject *__FindDefaultIcon_WB
     }
     
     return icon;
+}
+
+struct DiskObject *__FindDeviceIcon_WB
+(
+    struct IconIdentifyMsg *iim, struct IconBase *IconBase
+)
+{
+    struct InfoData devIData;
+    struct DosList *dl;
+    devIData.id_DiskType = ID_UNREADABLE_DISK;
+    dl = LockDosList(LDF_DEVICES|LDF_READ);
+    if (dl)
+    {
+        struct DosList *dn = FindDosEntry(dl, iim->iim_FIB->fib_FileName, LDF_DEVICES);
+        if ((dn) && (dn->dol_Task))
+        {
+            DoPkt(dn->dol_Task, ACTION_DISK_INFO,
+                    (SIPTR) MKBADDR(&devIData),
+                    (SIPTR) BNULL, (SIPTR) BNULL,
+                    (SIPTR) BNULL, (SIPTR) BNULL);
+        }
+        UnLockDosList(LDF_DEVICES|LDF_READ);
+    }
+    return __GetDeviceIcon_WB(iim->iim_FIB->fib_FileName, devIData.id_DiskType, iim->iim_Tags, IconBase);
 }
 
 /*** Support functions ******************************************************/

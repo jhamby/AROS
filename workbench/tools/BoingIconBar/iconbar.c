@@ -9,7 +9,54 @@
 //                                                          //
 //////////////////////////////////////////////////////////////
 
+/******************************************************************************
 
+    NAME
+
+        BoingIconBar
+
+    SYNOPSIS
+
+        SPACE/N/K, STATIC/N/K, AUTOREMAP/S/K, NAMES/S/K, SYSFONT/K, LABELFONT/K, FONTSIZE/N/K
+
+    LOCATION
+
+        SYS:Tools
+
+    FUNCTION
+
+        Display a toolbar at the screen's bottom for starting of applications. There's a
+        preferences editor for configuring.
+
+    INPUTS
+
+        SPACE       -- the number of pixels between the icons
+        STATIC      -- set this to 1 to let the toolbar stay permanently on screen
+        AUTOREMAP   --
+        NAMES       -- show icon labels
+        SYSFONT     -- font for the menu
+        LABELFONT   -- font for the labels
+        FONTSIZE    -- size of the label font
+
+    RESULT
+
+    NOTES
+
+    EXAMPLE
+
+        BoingIconBar NAMES FONTSIZE 20
+
+    BUGS
+
+    SEE ALSO
+
+    INTERNALS
+
+    HISTORY
+
+******************************************************************************/
+
+//#define DEBUG 1
 #include <aros/debug.h>
 
 #include <proto/workbench.h>
@@ -87,7 +134,7 @@ enum {
 
 #define BIB_PREFS "ENV:Iconbar.prefs"
 
-const TEXT version[]="$VER: BoingIconBar 1.11 (15.12.2020) by Robert 'Phibrizzo' Krajcarz - AROS port by LuKeJerry";
+const TEXT version[]="$VER: BoingIconBar 1.12 (01.05.2023) by Robert 'Phibrizzo' Krajcarz - AROS port by LuKeJerry";
 
 static BOOL                                     BiB_Exit=FALSE, Icon_Remap=FALSE, PositionMenuOK=FALSE; 
 static BOOL                                     Window_Active=FALSE, Window_Open=FALSE, MenuWindow_Open=FALSE, FirstOpening=TRUE;
@@ -369,10 +416,9 @@ int main(int argc, char *argv[])
                 Reload();
             }
 
-
             if(Window_Open || MenuWindow_Open)
             {
-                WindowSignal = Wait(WindowMask | MenuMask);
+                WindowSignal = Wait(WindowMask | MenuMask | SIGBREAKF_CTRL_C);
 
                 if(WindowSignal & WindowMask)
                 {
@@ -399,10 +445,25 @@ int main(int argc, char *argv[])
                     if(MenuWindow_Open == FALSE)
                         CloseMenuWindow();
                 }
+
+                if(WindowSignal & SIGBREAKF_CTRL_C)
+                {
+                    D(bug("CTRL-C reveived\n"));
+                    BiB_Exit=TRUE;
+                }
+
             }
             else
             {
                 Delay(50);
+                D(bug("Check for CTRL-C\n"));
+                if (SetSignal(0, 0) & SIGBREAKF_CTRL_C)
+                {
+                    D(bug("CTRL-C reveived\n"));
+                    SetSignal(0, SIGBREAKF_CTRL_C);
+                    BiB_Exit=TRUE;
+                }
+
                 CheckMousePosition();
             }
         }
@@ -1168,6 +1229,7 @@ static void CloseMainWindow(void)
     LONG x;
     if(MainWindow)
         CloseWindow(MainWindow);
+    MainWindow = NULL;
     for(x=Levels[CurrentLevel].Beginning; x<IconCounter; x++)
     {
         Icons[x].Icon_Status = 0;
@@ -1292,6 +1354,7 @@ static void CloseMenuWindow(void)
     if (MenuWindow)
         CloseWindow(MenuWindow);
     MenuMask = 0;
+    MenuWindow = NULL;
 
     if(PositionMenuOK == TRUE)
     {

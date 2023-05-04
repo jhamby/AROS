@@ -38,6 +38,6 @@ USER_LDFLAGS := -L$(AROS_CONTRIB_LIB)
 
 %build_progs mmake=test-hidd-gfx-yes-cunit \
     files=$(CUNITFILES) targetdir=$(CUNITEXEDIR) \
-    uselibs="hiddstubs cunit"
+    uselibs="hiddstubs cunit posixc"
 
 %common

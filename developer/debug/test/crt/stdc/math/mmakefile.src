@@ -88,4 +88,4 @@ USER_LDFLAGS := -L$(AROS_CONTRIB_LIB)
 
 %build_prog mmake=test-crt-stdc-math-yes-cunit \
     files=cunit-crt-math targetdir=$(CUNITEXEDIR) \
-    progname=cunit-crt-math uselibs="cunit"
+    progname=cunit-crt-math uselibs="cunit posixc"

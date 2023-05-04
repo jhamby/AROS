@@ -34,7 +34,6 @@ EXECPUBLICFILES :=		\
     signaltest		\
     supertest		\
     tasklist		\
-    taskstorage \
     tasktest		\
     traptest		\
     vblank
@@ -88,6 +87,6 @@ USER_LDFLAGS := -L$(AROS_CONTRIB_LIB)
 
 %build_progs mmake=test-exec-yes-cunit \
     files=$(CUNITEXECTESTFILES) targetdir=$(CUNITEXEDIR) \
-    uselibs="cunit"
+    uselibs="cunit posixc"
 
 %common
